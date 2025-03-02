@@ -16,6 +16,17 @@ def is_connect(interaction: discord.Interaction):
   except requests.RequestException:  # 接続不可
     return False
 
+def all_voice():
+  response = requests.get(f"http://{host}:{port}/speakers")
+  speakers = response.json()
+  speaker_data = []
+  for speaker in speakers:
+    name = speaker['name']
+    styles = speaker['styles']
+    for style in styles:
+      speaker_data.append((name, style['name'], style['id']))
+  return speaker_data
+
 #音声合成用クエリ作成
 def _gene_voice(talking_setting):
   query=requests.post(
