@@ -43,20 +43,24 @@ class VOICEVOX:
       )
     return synthesis.content
 
-  async def synthesize_voice(msg_content):
+  async def synthesize_voice(msg_content,usr_id):
     #voiceコマンド(chgVoiceメソッド)完成までの一時設定
     talking_setting = (
       ('text', msg_content),
-      ('speaker', 10),
+      ('speaker', VoiceSet.get_private_speaker(usr_id)),
     )
     #===========================================
     return VOICEVOX._gene_voice(talking_setting)
 
 class VoiceSet:
   file_name="rv_voice_dic.txt"
-  voice_settings={}#ユーザーIDをキーに声を呼び出す
+  voice_settings={}#ユーザーIDをキーに声を呼び出すdict
 
   voice_dic={}#話者一覧
+
+  def get_private_speaker(usr_id):
+    return VoiceSet.voice_settings.get(str(usr_id), 3)#3はずんだもん
+      
 
   """テキストファイルとして保存しておいたボイス設定を読み込む"""
   #ここをenvに保存出来たらいいかも
@@ -64,26 +68,23 @@ class VoiceSet:
     with open(VoiceSet.file_name,"r")as file:
       for line in file:
         words = line.strip().split()
-        voice_settings[words[0]]=words[1]
+        VoiceSet.voice_settings[words[0]]=words[1]
 
   """指定したユーザーidのデータがディクショナリ内にあるか探索"""
   def seach_id(usr_id):
-    if usr_id in voice_settings:
-      return True
-    else:
-      return False
+    return usr_id in VoiceSet.voice_settings
+
 
   """声設定をディクショナリに保存し、テキストファイルに書き込む"""
   def set_voice(usr_id,voice):
-    global voice_settings
-    voice_settings[usr_id]=voice
+    VoiceSet.voice_settings[usr_id]=voice
     if VoiceSet.seach_id(usr_id):
       with open(VoiceSet.file_name,"w",encoding="utf-8") as file:
-        for key,value in voice_settings.items():
+        for key,value in VoiceSet.voice_settings.items():
           file.write(f"{key} {value}\n")
     else:
       with open(VoiceSet.file_name,"a",encoding="utf-8") as file:
-          file.write(f"{usr_id} {voice}\n")
+        file.write(f"{usr_id} {voice}\n")
 
   def mk_dic():#声を変更するコマンドの選択肢を与えるための関数
     data=VOICEVOX.all_voice()

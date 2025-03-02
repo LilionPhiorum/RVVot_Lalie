@@ -51,7 +51,7 @@ def is_bot_reading(interaction):
 """botのVCへの呼び出し条件が整っていればtrue"""
 #ユーザーによるコマンド使用、コマンド使用者がVCに接続済み、voicevoxへの接続済み
 def is_bot_can_call(interaction):
-  return bool(is_user(interaction) and is_user_talking(interaction) and RV_voicevox.is_connect(interaction))
+  return bool(is_user(interaction) and is_user_talking(interaction) and RV_voicevox.VOICEVOX.is_connect(interaction))
 #===============================================================
 
 #discord's function
@@ -186,9 +186,10 @@ async def off(interaction:discord.Interaction):
 """読み上げボイスの変更"""
 voice_options = [Choice(name=key, value=value) for key,value in RV_voicevox.VoiceSet.mk_dic().items()]
 @tree.command(name="voice",description="読み上げ音声の変更")
-@app_commands.choices(tst=voice_options)
-async def test_command(interaction: discord.Interaction,tst:Choice[int]):
-  await hidden_response(interaction,"制作中")
+@app_commands.choices(voice=voice_options)
+async def test_command(interaction: discord.Interaction,voice:Choice[int]):
+  RV_voicevox.VoiceSet.set_voice(interaction.user.id,voice.value)
+  await hidden_response(interaction,"音声を変更しました")
 #===============================================================
 
 #基本状況
@@ -207,7 +208,7 @@ async def on_message(msg):
       print("Ignored because it was predicted as an non-message")
     else:
       print(msg.content)
-      voice = await RV_voicevox.synthesize_voice(msg.content)
+      voice = await RV_voicevox.VOICEVOX.synthesize_voice(msg.content,msg.author.id)
       audio_stream=io.BytesIO(voice)#音声変換1
       audio_source=FFmpegPCMAudio(audio_stream,pipe=True)#音声変換2
       voice_client = discord.utils.get(client.voice_clients, guild=msg.guild)
