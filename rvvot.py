@@ -188,6 +188,7 @@ voice_options = [Choice(name=key, value=value) for key,value in RV_voicevox.Voic
 @tree.command(name="voice",description="読み上げ音声の変更")
 @app_commands.choices(voice=voice_options)
 async def test_command(interaction: discord.Interaction,voice:Choice[int]):
+  await interaction.response.defer(ephemeral=ResponseHiding)#処理中というのをdiscordに送信
   RV_voicevox.VoiceSet.set_voice(interaction.user.id,voice.value)
   await hidden_response(interaction,"音声を変更しました")
 #===============================================================

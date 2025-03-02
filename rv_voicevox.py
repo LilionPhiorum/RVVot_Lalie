@@ -68,15 +68,17 @@ class VoiceSet:
     with open(VoiceSet.file_name,"r")as file:
       for line in file:
         words = line.strip().split()
-        VoiceSet.voice_settings[words[0]]=words[1]
+        VoiceSet.voice_settings[str(words[0])]=words[1]
 
   """指定したユーザーidのデータがディクショナリ内にあるか探索"""
   def seach_id(usr_id):
-    return usr_id in VoiceSet.voice_settings
+    return str(usr_id) in VoiceSet.voice_settings
 
 
   """声設定をディクショナリに保存し、テキストファイルに書き込む"""
   def set_voice(usr_id,voice):
+    usr_id = str(usr_id)
+    voice = str(voice)
     VoiceSet.voice_settings[usr_id]=voice
     if VoiceSet.seach_id(usr_id):
       with open(VoiceSet.file_name,"w",encoding="utf-8") as file:
