@@ -2,6 +2,7 @@
 import discord
 from discord.ext import commands#bot操作
 from discord import app_commands#コマンド
+from discord.app_commands import Choice
 from discord import FFmpegPCMAudio
 import io
 from dotenv import load_dotenv
@@ -9,6 +10,7 @@ import os
 #original module
 import rv_voicevox as RV_voicevox
 import rv_modify as RV_modify
+import rv_voiceset as RV_voiceset
 
 intents = discord.Intents.default()
 intents.message_content=True#メッセージ読み取りの許可
@@ -17,6 +19,7 @@ tree = app_commands.CommandTree(client)
 
 readChannel=[]
 ResponseHiding = True
+voice_dic=RV_voiceset.mk_dic();#名前とidの対応表
 
 #botのトークンの読み込み
 load_dotenv()
@@ -28,7 +31,8 @@ TOKEN = os.getenv("BOT_TOKEN")
 @client.event
 async def on_ready():
   await tree.sync()#コマンド同期
-  print("ver 3.7 awaked")
+  RV_voiceset.load_voice()#音声設定同期
+  print("ver 4.0 awaked")
 #===============================================================
 
 #discord condition checking
@@ -179,6 +183,12 @@ async def off(interaction:discord.Interaction):
       await hidden_response(interaction,"botはVCに参加していません")
     else:
       await common_error_message(interaction)
+
+voice_options = [Choice(name=key, value=value) for key,value in RV_voiceset.mk_dic().items()]
+@tree.command(name="voice",description="読み上げ音声の変更")
+@app_commands.choices(tst=voice_options)
+async def test_command(interaction: discord.Interaction,tst:Choice[int]):
+  await hidden_response(interaction,"制作中")
 #===============================================================
 
 #基本状況
