@@ -179,7 +179,7 @@ async def off(interaction:discord.Interaction):
     await disconnect_voice_channel(interaction,"切断")
   else:
     if not is_bot_reading(interaction):
-      await hidden_response(interaction,"botはVCに参加していません")
+      await hidden_response(interaction,"敗北者め！")#またここは変更
     else:
       await common_error_message(interaction)
 
