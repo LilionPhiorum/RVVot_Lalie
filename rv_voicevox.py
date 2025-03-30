@@ -101,7 +101,6 @@ class VoiceSet:
     return VoiceSet.voice_dic
   
   """userIDからその人の読み上げボイスが誰か表示したい..."""
-  # def get_speaker_name(usr_id):
-  #   usr_id = str(usr_id)
-  #   print(VoiceSet.voice_dic.inv.get(str(VoiceSet.get_private_speaker_id(usr_id))))
-  #   return VoiceSet.voice_dic.inv.get(str(VoiceSet.get_private_speaker_id(usr_id)))
+  def get_speaker_name(usr_id):
+    usr_id = str(usr_id)
+    return VoiceSet.voice_dic.inv.get(int(VoiceSet.get_private_speaker_id(usr_id)))

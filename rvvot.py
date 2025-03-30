@@ -187,10 +187,16 @@ async def off(interaction:discord.Interaction):
 voice_options = [Choice(name=key, value=value) for key,value in RV_voicevox.VoiceSet.mk_dic().items()]
 @tree.command(name="voice",description="読み上げ音声の変更")
 @app_commands.choices(voice=voice_options)
-async def test_command(interaction: discord.Interaction,voice:Choice[int]):
+async def voice(interaction: discord.Interaction,voice:Choice[int]):
   await interaction.response.defer(ephemeral=ResponseHiding)#処理中というのをdiscordに送信
   RV_voicevox.VoiceSet.set_voice(interaction.user.id,voice.value)
-  await hidden_response(interaction,"変更しました")
+  await hidden_response(interaction,(RV_voicevox.VoiceSet.get_speaker_name(interaction.user.id)+" が読み上げます"))
+
+"""現状読み上げてくれてるボイスの確認"""
+@tree.command(name="speaker",description="読み上げ話者の名前の表示")
+async def speaker(interaction: discord.Interaction):
+  await interaction.response.defer(ephemeral=ResponseHiding)
+  await hidden_response(interaction,(RV_voicevox.VoiceSet.get_speaker_name(interaction.user.id)+" が読み上げています"))
 #===============================================================
 
 #基本状況
