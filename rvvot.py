@@ -89,6 +89,11 @@ async def remove_read_channel(interaction,msg:str=None):
   readChannel.remove(interaction.channel)
   await hidden_response(interaction,msg)
 
+"""読み上げチャンネルへの存在を確認"""
+def is_read_channel(channel):
+  global readChannel
+  return channel in readChannel
+
 """UserIDをもとに表示名を返す"""
 async def get_display_name(msg,user_id):
   name = (await msg.guild.fetch_member(user_id)).display_name
@@ -140,21 +145,16 @@ async def on(interaction:discord.Interaction,force:bool=False) :
 @tree.command(name="add",description="コマンドを利用したテキストチャンネルを読み上げ対象として追加")
 async def add(interaction:discord.Interaction):
   await interaction.response.defer(ephemeral=ResponseHiding)#処理中というのをdiscordに送信
-  #指令がbotでなくて、読み上げ対象チャンネルとされていない
   if is_bot_can_call(interaction):
-    await add_read_channel(interaction,"追加")
-  else:
-    #追加するチャンネルがすでに追加されている場合
-    if (interaction.channel in readChannel):
-      await hidden_response(interaction,"すでに追加されています")
-    #読み上げがまだ始まっていない場合に、StartReadingとは違い、接続チャンネル変更なしで接続
-    elif not(is_bot_reading(interaction)):
-      if is_user_talking(interaction):
-        await connect_voice_channel(interaction,"未接続のため接続")
-      else:#is_userには入れていて、is_user_talkingがfalse出ないとここに入らない
-        await hidden_response(interaction,"コマンド実行者がVCに接続した後に使用してください")
-    else:#error
-      await common_error_message(interaction)
+    if is_bot_reading(interaction):#botが読み上げ中
+      if not(is_read_channel(interaction.channel)):#追加チャンネルが読み上げチャンネルに入っていない場合
+        await add_read_channel(interaction,"追加")
+      else:#追加チャンネルが読み上げチャンネルに入っている場合
+        await hidden_response(interaction,"すでに追加されています")
+    else:#botが読み上げしてない場合
+      await connect_voice_channel(interaction,"未接続のため接続")
+  else:#error
+    await common_error_message(interaction)
 
 """読み上げチャンネルからの排除コマンド"""
 @tree.command(name="remove",description="コマンドを利用したテキストチャンネルを読み上げ対象として追加")
