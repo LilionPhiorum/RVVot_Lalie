@@ -11,6 +11,8 @@ import os
 import rv_voicevox as RV_voicevox
 import rv_modify as RV_modify
 
+import random
+
 intents = discord.Intents.default()
 intents.message_content=True#メッセージ読み取りの許可
 client = discord.Client(intents=intents)
@@ -62,6 +64,13 @@ async def hidden_response(interaction,cont:str="none content"):#引数はinterac
     await interaction.response.send_message(cont, ephemeral=ResponseHiding)
   else:
     await interaction.followup.send(cont, ephemeral=ResponseHiding)
+
+"""オープンメッセージの送信"""
+async def open_response(interaction,cont:str="none content"):#引数はinteractionとメッセージ内容
+  if not interaction.response.is_done():
+    await interaction.response.send_message(cont, ephemeral=False)
+  else:
+    await interaction.followup.send(cont, ephemeral=False)
 
 """VCへの接続"""
 async def connect_voice_channel(interaction,msg:str=None):#interaction,応答内容
@@ -197,6 +206,12 @@ async def voice(interaction: discord.Interaction,voice:Choice[int]):
 async def speaker(interaction: discord.Interaction):
   await interaction.response.defer(ephemeral=ResponseHiding)
   await hidden_response(interaction,(RV_voicevox.VoiceSet.get_speaker_name(interaction.user.id)+" が読み上げています"))
+
+@tree.command(name="randnum",description="乱数")
+async def randnum(interaction: discord.Interaction, min:int=0, max:int=100):
+  await interaction.response.defer(ephemeral=ResponseHiding)
+  randnum = random.uniform(min, max)
+  await open_response(interaction, randnum)
 #===============================================================
 
 #基本状況
