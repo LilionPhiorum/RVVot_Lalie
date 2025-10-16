@@ -2,6 +2,7 @@
 import discord
 from discord.ext import commands#bot操作
 from discord import app_commands#コマンド
+from discord.app_commands import Choice
 from discord import FFmpegPCMAudio
 import io
 from dotenv import load_dotenv
@@ -10,6 +11,8 @@ import os
 import rv_voicevox as RV_voicevox
 import rv_modify as RV_modify
 
+import random
+
 intents = discord.Intents.default()
 intents.message_content=True#メッセージ読み取りの許可
 client = discord.Client(intents=intents)
@@ -17,6 +20,7 @@ tree = app_commands.CommandTree(client)
 
 readChannel=[]
 ResponseHiding = True
+voice_dic = RV_voicevox.VoiceSet.mk_dic();#名前とidの対応表
 
 #botのトークンの読み込み
 load_dotenv()
@@ -28,7 +32,8 @@ TOKEN = os.getenv("BOT_TOKEN")
 @client.event
 async def on_ready():
   await tree.sync()#コマンド同期
-  print("ver 3.7 awaked")
+  RV_voicevox.VoiceSet.load_voice()#音声設定同期
+  print("ver 4.0 awaked")
 #===============================================================
 
 #discord condition checking
@@ -48,7 +53,7 @@ def is_bot_reading(interaction):
 """botのVCへの呼び出し条件が整っていればtrue"""
 #ユーザーによるコマンド使用、コマンド使用者がVCに接続済み、voicevoxへの接続済み
 def is_bot_can_call(interaction):
-  return bool(is_user(interaction) and is_user_talking(interaction) and RV_voicevox.is_connect(interaction))
+  return bool(is_user(interaction) and is_user_talking(interaction) and RV_voicevox.VOICEVOX.is_connect(interaction))
 #===============================================================
 
 #discord's function
@@ -59,6 +64,13 @@ async def hidden_response(interaction,cont:str="none content"):#引数はinterac
     await interaction.response.send_message(cont, ephemeral=ResponseHiding)
   else:
     await interaction.followup.send(cont, ephemeral=ResponseHiding)
+
+"""オープンメッセージの送信"""
+async def open_response(interaction,cont:str="none content"):#引数はinteractionとメッセージ内容
+  if not interaction.response.is_done():
+    await interaction.response.send_message(cont, ephemeral=False)
+  else:
+    await interaction.followup.send(cont, ephemeral=False)
 
 """VCへの接続"""
 async def connect_voice_channel(interaction,msg:str=None):#interaction,応答内容
@@ -85,6 +97,11 @@ async def remove_read_channel(interaction,msg:str=None):
   global readChannel
   readChannel.remove(interaction.channel)
   await hidden_response(interaction,msg)
+
+"""読み上げチャンネルへの存在を確認"""
+def is_read_channel(channel):
+  global readChannel
+  return channel in readChannel
 
 """UserIDをもとに表示名を返す"""
 async def get_display_name(msg,user_id):
@@ -137,21 +154,16 @@ async def on(interaction:discord.Interaction,force:bool=False) :
 @tree.command(name="add",description="コマンドを利用したテキストチャンネルを読み上げ対象として追加")
 async def add(interaction:discord.Interaction):
   await interaction.response.defer(ephemeral=ResponseHiding)#処理中というのをdiscordに送信
-  #指令がbotでなくて、読み上げ対象チャンネルとされていない
   if is_bot_can_call(interaction):
-    await add_read_channel(interaction,"追加")
-  else:
-    #追加するチャンネルがすでに追加されている場合
-    if (interaction.channel in readChannel):
-      await hidden_response(interaction,"すでに追加されています")
-    #読み上げがまだ始まっていない場合に、StartReadingとは違い、接続チャンネル変更なしで接続
-    elif not(is_bot_reading(interaction)):
-      if is_user_talking(interaction):
-        await connect_voice_channel(interaction,"未接続のため接続")
-      else:#is_userには入れていて、is_user_talkingがfalse出ないとここに入らない
-        await hidden_response(interaction,"コマンド実行者がVCに接続した後に使用してください")
-    else:#error
-      await common_error_message(interaction)
+    if is_bot_reading(interaction):#botが読み上げ中
+      if not(is_read_channel(interaction.channel)):#追加チャンネルが読み上げチャンネルに入っていない場合
+        await add_read_channel(interaction,"追加")
+      else:#追加チャンネルが読み上げチャンネルに入っている場合
+        await hidden_response(interaction,"すでに追加されています")
+    else:#botが読み上げしてない場合
+      await connect_voice_channel(interaction,"未接続のため接続")
+  else:#error
+    await common_error_message(interaction)
 
 """読み上げチャンネルからの排除コマンド"""
 @tree.command(name="remove",description="コマンドを利用したテキストチャンネルを読み上げ対象として追加")
@@ -176,9 +188,30 @@ async def off(interaction:discord.Interaction):
     await disconnect_voice_channel(interaction,"切断")
   else:
     if not is_bot_reading(interaction):
-      await hidden_response(interaction,"botはVCに参加していません")
+      await hidden_response(interaction,"敗北者め！")#またここは変更
     else:
       await common_error_message(interaction)
+
+"""読み上げボイスの変更"""
+voice_options = [Choice(name=key, value=value) for key,value in RV_voicevox.VoiceSet.mk_dic().items()]
+@tree.command(name="voice",description="読み上げ音声の変更")
+@app_commands.choices(voice=voice_options)
+async def voice(interaction: discord.Interaction,voice:Choice[int]):
+  await interaction.response.defer(ephemeral=ResponseHiding)#処理中というのをdiscordに送信
+  RV_voicevox.VoiceSet.set_voice(interaction.user.id,voice.value)
+  await hidden_response(interaction,(RV_voicevox.VoiceSet.get_speaker_name(interaction.user.id)+" が読み上げます"))
+
+"""現状読み上げてくれてるボイスの確認"""
+@tree.command(name="speaker",description="読み上げ話者の名前の表示")
+async def speaker(interaction: discord.Interaction):
+  await interaction.response.defer(ephemeral=ResponseHiding)
+  await hidden_response(interaction,(RV_voicevox.VoiceSet.get_speaker_name(interaction.user.id)+" が読み上げています"))
+
+@tree.command(name="randnum",description="乱数")
+async def randnum(interaction: discord.Interaction, min:int=0, max:int=100):
+  await interaction.response.defer(ephemeral=ResponseHiding)
+  randnum = random.uniform(min, max)
+  await open_response(interaction, randnum)
 #===============================================================
 
 #基本状況
@@ -197,7 +230,7 @@ async def on_message(msg):
       print("Ignored because it was predicted as an non-message")
     else:
       print(msg.content)
-      voice = await RV_voicevox.synthesize_voice(msg.content)
+      voice = await RV_voicevox.VOICEVOX.synthesize_voice(msg.content,msg.author.id)
       audio_stream=io.BytesIO(voice)#音声変換1
       audio_source=FFmpegPCMAudio(audio_stream,pipe=True)#音声変換2
       voice_client = discord.utils.get(client.voice_clients, guild=msg.guild)
