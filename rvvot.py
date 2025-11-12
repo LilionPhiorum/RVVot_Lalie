@@ -235,7 +235,7 @@ def _load_notice_channel_id():
     pass
   return None
 
-@tree.command(name="setz", description="今日ははお休みのメッセージのチャンネル設定")
+@tree.command(name="setz", description="今日はお休みのメッセージのチャンネル設定")
 async def zset(interaction: discord.Interaction):
   await interaction.response.defer(ephemeral=False)
   global noticeChannelID
