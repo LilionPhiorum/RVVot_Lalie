@@ -19,12 +19,14 @@ client = discord.Client(intents=intents)
 tree = app_commands.CommandTree(client)
 
 readChannel=[]
-ResponseHiding = True
 voice_dic = RV_voicevox.VoiceSet.mk_dic();#名前とidの対応表
 
 #botのトークンの読み込み
 load_dotenv()
 TOKEN = os.getenv("BOT_TOKEN")
+
+#for other commands
+
 
 
 #awake
@@ -61,9 +63,9 @@ def is_bot_can_call(interaction):
 """隠しメッセージの送信"""
 async def hidden_response(interaction,cont:str="none content"):#引数はinteractionとメッセージ内容
   if not interaction.response.is_done():
-    await interaction.response.send_message(cont, ephemeral=ResponseHiding)
+    await interaction.response.send_message(cont, ephemeral=True)
   else:
-    await interaction.followup.send(cont, ephemeral=ResponseHiding)
+    await interaction.followup.send(cont, ephemeral=True)
 
 """オープンメッセージの送信"""
 async def open_response(interaction,cont:str="none content"):#引数はinteractionとメッセージ内容
@@ -125,7 +127,7 @@ async def common_error_message(interaction):
 """VCへの呼び出しコマンド"""
 @tree.command(name="on",description="VCへの参加し、コマンドを利用したテキストチャンネルの読み上げを開始")
 async def on(interaction:discord.Interaction,force:bool=False) :
-  await interaction.response.defer(ephemeral=ResponseHiding)#処理中というのをdiscordに送信
+  await interaction.response.defer(ephemeral=True)#処理中というのをdiscordに送信
   #指令がbotでなくて、ボイチャに接続していて、再宣言されたときに入る先が同じでない
   if is_bot_can_call(interaction):
     #botがボイスチャットに接続していない場合にvoice_client.channelにアクセスするなどがないように
@@ -153,7 +155,7 @@ async def on(interaction:discord.Interaction,force:bool=False) :
 """読み上げチャンネルの追加コマンド"""
 @tree.command(name="add",description="コマンドを利用したテキストチャンネルを読み上げ対象として追加")
 async def add(interaction:discord.Interaction):
-  await interaction.response.defer(ephemeral=ResponseHiding)#処理中というのをdiscordに送信
+  await interaction.response.defer(ephemeral=True)#処理中というのをdiscordに送信
   if is_bot_can_call(interaction):
     if is_bot_reading(interaction):#botが読み上げ中
       if not(is_read_channel(interaction.channel)):#追加チャンネルが読み上げチャンネルに入っていない場合
@@ -168,7 +170,7 @@ async def add(interaction:discord.Interaction):
 """読み上げチャンネルからの排除コマンド"""
 @tree.command(name="remove",description="コマンドを利用したテキストチャンネルを読み上げ対象として追加")
 async def remove(interaction:discord.Interaction):
-  await interaction.response.defer(ephemeral=ResponseHiding)#処理中というのをdiscordに送信
+  await interaction.response.defer(ephemeral=True)#処理中というのをdiscordに送信
   if is_user(interaction) and (interaction.channel in readChannel):
     await remove_read_channel(interaction,"除外")
     #読み上げチャンネルがない状態で使用されると通話から抜ける
@@ -183,7 +185,7 @@ async def remove(interaction:discord.Interaction):
 """ボイスチャットからの切断"""
 @tree.command(name="off",description="VCからの離脱")
 async def off(interaction:discord.Interaction):
-  await interaction.response.defer(ephemeral=ResponseHiding)#処理中というのをdiscordに送信
+  await interaction.response.defer(ephemeral=True)#処理中というのをdiscordに送信
   if is_user(interaction) and is_bot_reading(interaction):
     await disconnect_voice_channel(interaction,"切断")
   else:
@@ -197,21 +199,82 @@ voice_options = [Choice(name=key, value=value) for key,value in RV_voicevox.Voic
 @tree.command(name="voice",description="読み上げ音声の変更")
 @app_commands.choices(voice=voice_options)
 async def voice(interaction: discord.Interaction,voice:Choice[int]):
-  await interaction.response.defer(ephemeral=ResponseHiding)#処理中というのをdiscordに送信
+  await interaction.response.defer(ephemeral=True)#処理中というのをdiscordに送信
   RV_voicevox.VoiceSet.set_voice(interaction.user.id,voice.value)
   await hidden_response(interaction,(RV_voicevox.VoiceSet.get_speaker_name(interaction.user.id)+" が読み上げます"))
 
 """現状読み上げてくれてるボイスの確認"""
 @tree.command(name="speaker",description="読み上げ話者の名前の表示")
 async def speaker(interaction: discord.Interaction):
-  await interaction.response.defer(ephemeral=ResponseHiding)
+  await interaction.response.defer(ephemeral=True)
   await hidden_response(interaction,(RV_voicevox.VoiceSet.get_speaker_name(interaction.user.id)+" が読み上げています"))
+#===============================================================
 
+#other commands
+#===============================================================
+"""乱数生成コマンド"""
 @tree.command(name="randnum",description="乱数")
 async def randnum(interaction: discord.Interaction, min:int=0, max:int=100):
-  await interaction.response.defer(ephemeral=ResponseHiding)
+  await interaction.response.defer(ephemeral=False)
   randnum = random.uniform(min, max)
   await open_response(interaction, randnum)
+
+"""今日はお休みコマンド"""
+noticeChannelID = None
+
+def _load_notice_channel_id():
+  """othercommands.txt の noticeChannel 直下の行からID(int)を取得"""
+  file_path = os.path.join(os.path.dirname(__file__), "othercommands.txt")
+  try:
+    with open(file_path, "r", encoding="utf-8") as f:
+      lines = f.readlines()
+    idx = next((i for i, l in enumerate(lines) if l.strip() == "noticeChannel"), None)
+    if idx is not None and idx + 1 < len(lines):
+      return int(lines[idx + 1].strip())
+  except Exception:
+    pass
+  return None
+
+@tree.command(name="setz", description="今日ははお休みのメッセージのチャンネル設定")
+async def zset(interaction: discord.Interaction):
+  await interaction.response.defer(ephemeral=False)
+  global noticeChannelID
+  noticeChannelID = interaction.channel.id  # 数値IDを保持
+
+  file_path = os.path.join(os.path.dirname(__file__), "othercommands.txt")
+  channel_id_str = str(noticeChannelID) + "\n"
+
+  try:
+    with open(file_path, "r", encoding="utf-8") as f:
+      lines = f.readlines()
+  except FileNotFoundError:
+    lines = []
+
+  idx = next((i for i, l in enumerate(lines) if l.strip() == "noticeChannel"), None)
+  if idx is not None:
+    if idx + 1 < len(lines):
+      lines[idx + 1] = channel_id_str
+    else:
+      lines.append(channel_id_str)
+  else:
+    lines.extend(["noticeChannel\n", channel_id_str])
+
+  with open(file_path, "w", encoding="utf-8") as f:
+    f.writelines(lines)
+
+  await open_response(interaction, "お休み通知チャンネルを設定しました")
+
+@tree.command(name="z", description="今日はお休み")
+async def rest(interaction: discord.Interaction):
+  await interaction.response.defer(ephemeral=True)
+  global noticeChannelID
+
+  channel_id = noticeChannelID or _load_notice_channel_id()
+
+  channel = await client.fetch_channel(channel_id)
+  name = getattr(interaction.user, "display_name", interaction.user.name)
+  await channel.send(interaction.user.display_name +"「今日はお休み」")
+  await hidden_response(interaction, "送信しました")
 #===============================================================
 
 #基本状況
